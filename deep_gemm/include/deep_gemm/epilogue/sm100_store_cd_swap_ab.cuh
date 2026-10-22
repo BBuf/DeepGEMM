@@ -145,8 +145,8 @@ sm100_store_cd_swap_ab(smem_t& smem, uint32_t& tma_stage_idx,
                 const auto amax_pair = math::warp_reduce_max<4, true>(
                     __hmax2(__hmax2(__habs2(values_bf16x2[0]), __habs2(values_bf16x2[1])),
                             __hmax2(__habs2(values_bf16x2[2]), __habs2(values_bf16x2[3]))));
-                const auto sf_exp_lower = math::get_ue8m0_sf_exp<cd_dtype_t>(amax_pair.x);
-                const auto sf_exp_upper = math::get_ue8m0_sf_exp<cd_dtype_t>(amax_pair.y);
+                const auto sf_exp_lower = math::get_ue8m0_sf_exp<cd_dtype_t>(amax_pair.x, epilogue_op.min_sf_exp);
+                const auto sf_exp_upper = math::get_ue8m0_sf_exp<cd_dtype_t>(amax_pair.y, epilogue_op.min_sf_exp);
                 const auto sf_inv = nv_bfloat162(math::get_ue8m0_sf_inv<nv_bfloat16>(sf_exp_lower),
                                                  math::get_ue8m0_sf_inv<nv_bfloat16>(sf_exp_upper));
 
