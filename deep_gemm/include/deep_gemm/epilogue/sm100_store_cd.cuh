@@ -146,7 +146,7 @@ sm100_store_cd(smem_t& smem, uint32_t& tma_stage_idx,
 
                     // Reduce the group amax and compute the SF (the SF exponent floor covers the amax clamp),
                     // then splat the BF16 sf_inv into both packed halves
-                    const auto sf_exp = math::get_ue8m0_sf_exp<cd_dtype_t>(math::get_packed_bf16_amax(values_bf16x2));
+                    const auto sf_exp = math::get_ue8m0_sf_exp<cd_dtype_t>(math::get_packed_bf16_amax(values_bf16x2), epilogue_op.min_sf_exp);
                     const auto sf_inv = __bfloat162bfloat162(math::get_ue8m0_sf_inv<nv_bfloat16>(sf_exp));
 
                     // Cast into FP8 and store into shared memory

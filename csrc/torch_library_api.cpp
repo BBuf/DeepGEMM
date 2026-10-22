@@ -323,11 +323,12 @@ void dg_fp8_einsum(const std::string& expr,
                    const Tensor& a_data, const Tensor& a_sf,
                    const Tensor& b_data, const Tensor& b_sf,
                    const Tensor& d, const OptTensor& d_sf,
-                   const OptTensor& c, at::IntArrayRef recipe) {
+                   const OptTensor& c, at::IntArrayRef recipe, int64_t output_min_sf_exp) {
+    TORCH_CHECK(output_min_sf_exp >= 1 && output_min_sf_exp <= 254, "Invalid FP8 scale floor");
     std::variant<Tensor, std::pair<Tensor, Tensor>> output = d;
     if (d_sf.has_value())
         output = std::make_pair(d, d_sf.value());
-    einsum::fp8_einsum(expr, {a_data, a_sf}, {b_data, b_sf}, output, c, to_tuple3(recipe));
+    einsum::fp8_einsum(expr, {a_data, a_sf}, {b_data, b_sf}, output, c, to_tuple3(recipe), static_cast<uint32_t>(output_min_sf_exp));
 }
 
 // ---------------------------------------------------------------------------
@@ -740,7 +741,7 @@ TORCH_LIBRARY(deep_gemm, m) {
     // Einsum and hyperconnection
     m.def("einsum(str expr, Tensor a, Tensor b, Tensor(a!) d, Tensor? c, bool use_cublaslt) -> ()");
     m.def("fp8_einsum(str expr, Tensor a_data, Tensor a_sf, Tensor b_data, Tensor b_sf, Tensor(a!) d, "
-          "Tensor(b!)? d_sf, Tensor? c, int[] recipe) -> ()");
+          "Tensor(b!)? d_sf, Tensor? c, int[] recipe, int output_min_sf_exp=105) -> ()");
     m.def("tf32_hc_prenorm_gemm(Tensor a, Tensor b, Tensor(a!) d, Tensor(b!) sqr_sum, int? num_splits) -> ()");
 
     // Attention

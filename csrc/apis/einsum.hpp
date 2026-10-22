@@ -169,7 +169,7 @@ static void fp8_bmm(const torch::Tensor& a, const torch::Tensor& sfa,
                     const std::variant<torch::Tensor, std::pair<torch::Tensor, torch::Tensor>>& d,
                     const std::optional<torch::Tensor>& c,
                     std::optional<std::tuple<int, int, int>> recipe,
-                    const std::string& compiled_dims) {
+                    const std::string& compiled_dims, const uint32_t min_sf_exp = 105) {
     const auto d_fp8 = std::get_if<std::pair<torch::Tensor, torch::Tensor>>(&d);
     const auto d_tensor = d_fp8 != nullptr ? d_fp8->first : std::get<torch::Tensor>(d);
     const auto sfd = d_fp8 != nullptr ? std::make_optional(d_fp8->second) : std::nullopt;
@@ -250,7 +250,7 @@ static void fp8_bmm(const torch::Tensor& a, const torch::Tensor& sfa,
     if (arch_major == 12) {
         sm120_fp8_fp4_bmm(a, transformed_sfa, b, transformed_sfb, c, d_tensor, batch_size, m, n, k, gran_k_a, gran_k_b, major_a, major_b, compiled_dims);
     } else if (arch_major == 10) {
-        sm100_fp8_bmm(a, transformed_sfa, b, transformed_sfb, c, d_tensor, batch_size, m, n, k, gran_k_a, gran_k_b, major_a, major_b, compiled_dims, sfd);
+        sm100_fp8_bmm(a, transformed_sfa, b, transformed_sfb, c, d_tensor, batch_size, m, n, k, gran_k_a, gran_k_b, major_a, major_b, compiled_dims, sfd, min_sf_exp);
     } else {
         const auto major_sfb = get_major_type_ab(sfb);
         DG_HOST_ASSERT(gran_k_a == 128 and gran_k_b == 128);
@@ -263,7 +263,8 @@ static void fp8_einsum(const std::string& expr,
                        const std::pair<torch::Tensor, torch::Tensor>& b,
                        const std::variant<torch::Tensor, std::pair<torch::Tensor, torch::Tensor>>& d,
                        const std::optional<torch::Tensor>& c,
-                       const std::tuple<int, int, int>& recipe) {
+                       const std::tuple<int, int, int>& recipe, const uint32_t min_sf_exp = 105) {
+    DG_HOST_ASSERT(min_sf_exp >= 1 and min_sf_exp <= 254);
     // Some hardcoded Einstein sum kernels
     // NOTES: only `bhr,hdr->bhd` accepts an FP8 `(d, sfd)` output pair; the other
     //        expressions take a plain BF16/FP32 D
@@ -282,7 +283,7 @@ static void fp8_einsum(const std::string& expr,
         else
             std::get<torch::Tensor>(perm_d) = std::get<torch::Tensor>(perm_d).permute({1, 0, 2});
         const auto perm_c = c.has_value() ? std::make_optional(c.value().permute({1, 0, 2})) : std::nullopt;
-        fp8_bmm(perm_a, perm_sfa, b.first, b.second, perm_d, perm_c, recipe, "nk");
+        fp8_bmm(perm_a, perm_sfa, b.first, b.second, perm_d, perm_c, recipe, "nk", min_sf_exp);
     } else if (expr == "bhd,hdr->bhr") {
         // (batch_size, m, n, k): (h, b, r, d)
         DG_HOST_ASSERT(std::holds_alternative<torch::Tensor>(d));
@@ -323,7 +324,8 @@ static void register_apis(pybind11::module_& m) {
     m.def("fp8_einsum", &fp8_einsum,
           py::arg("expr"), py::arg("a"), py::arg("b"),
           py::arg("d"), py::arg("c") = std::nullopt,
-          py::arg("recipe") = std::make_tuple(1, 128, 128));
+          py::arg("recipe") = std::make_tuple(1, 128, 128),
+          py::arg("output_min_sf_exp") = 105);
 }
 
 #endif

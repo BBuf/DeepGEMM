@@ -81,6 +81,7 @@ struct EpilogueArgs {
     uint32_t sfd_stride = 0;
     uint32_t shape_m = 0, shape_n = 0;
     float alpha = 1.0f;
+    uint32_t min_sf_exp = 105;
 };
 
 } // namespace deep_gemm

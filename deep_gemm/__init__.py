@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from . import epilogue
+from .epilogue import FP8CastWithClamp
+
 import os
 import torch
 from glob import glob
@@ -131,10 +134,17 @@ try:
     def einsum(expr, a, b, d, c=None, use_cublaslt=False):
         _C.einsum(expr, a, b, d, c, use_cublaslt)
 
-    def fp8_einsum(expr, a, b, d, c=None, recipe=(1, 128, 128)):
+    def fp8_einsum(expr, a, b, d, c=None, recipe=(1, 128, 128), epilogue=None):
         (a_data, a_sf), (b_data, b_sf) = _parse_tensor_or_tuple(a), _parse_tensor_or_tuple(b)
         d_data, d_sf = d if isinstance(d, (tuple, list)) else (d, None)
-        _C.fp8_einsum(expr, a_data, a_sf, b_data, b_sf, d_data, d_sf, c, recipe)
+        min_sf_exp = 105
+        if epilogue is not None:
+            if d_sf is not None or not isinstance(epilogue, FP8CastWithClamp):
+                raise ValueError("Expected a tensor output and FP8CastWithClamp epilogue")
+            if expr != "bhr,hdr->bhd":
+                raise ValueError("FP8 output is supported only for bhr,hdr->bhd")
+            d_sf, min_sf_exp = epilogue.sfd, epilogue.min_sf_exp
+        _C.fp8_einsum(expr, a_data, a_sf, b_data, b_sf, d_data, d_sf, c, recipe, min_sf_exp)
 
     def fp8_gemm_nt_skip_head_mid(a, b, d, head_splits, recipe=None, compiled_dims='nk', disable_ue8m0_cast=False):
         (a_data, a_sf), (b_data, b_sf) = _parse_tensor_or_tuple(a), _parse_tensor_or_tuple(b)

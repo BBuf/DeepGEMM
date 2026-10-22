@@ -413,7 +413,8 @@ static void sm100_fp8_bmm(const torch::Tensor& a, const torch::Tensor& sfa,
                           const int& gran_k_a, const int& gran_k_b,
                           const cute::UMMA::Major& major_a, const cute::UMMA::Major& major_b,
                           const std::string& compiled_dims,
-                          const std::optional<torch::Tensor>& sfd = std::nullopt) {
+                          const std::optional<torch::Tensor>& sfd = std::nullopt,
+                          const uint32_t min_sf_exp = 105) {
     const auto desc = GemmDesc {
         .gemm_type = GemmType::Batched,
         .kernel_type = KernelType::Kernel1D1D,
@@ -471,7 +472,7 @@ static void sm100_fp8_bmm(const torch::Tensor& a, const torch::Tensor& sfa,
             .block_dim = dim3(config.launch_config.num_threads, 1, 1),
             .cluster_dim = dim3(config.layout.get_cluster_size(), 1, 1),
         },
-        .epilogue = make_epilogue_input(m, n, std::nullopt, std::nullopt, sfd),
+        .epilogue = make_epilogue_input(m, n, std::nullopt, std::nullopt, sfd, min_sf_exp),
         .gran_k_a = gran_k_a,
         .gran_k_b = gran_k_b,
         // NOTES: `k_alignment` is only used by k-grouped psum, dummy here

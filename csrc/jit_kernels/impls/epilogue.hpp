@@ -27,13 +27,15 @@ struct EpilogueInput {
 static EpilogueInput make_epilogue_input(const int& m, const int& n,
                                          const std::optional<std::string>& epilogue_type = std::nullopt,
                                          const std::optional<float>& alpha = std::nullopt,
-                                         const std::optional<torch::Tensor>& sfd = std::nullopt) {
+                                         const std::optional<torch::Tensor>& sfd = std::nullopt,
+                                         const uint32_t min_sf_exp = 105) {
     if (sfd.has_value()) {
         DG_HOST_ASSERT(not epilogue_type.has_value() and not alpha.has_value());
         return {"epilogue::transform::EpilogueDynamicScaledFP8",
                 {.sfd = static_cast<uint32_t*>(sfd->data_ptr()),
                  .sfd_stride = static_cast<uint32_t>(sfd->stride(-1)),
-                 .shape_m = static_cast<uint32_t>(m), .shape_n = static_cast<uint32_t>(n)}};
+                 .shape_m = static_cast<uint32_t>(m), .shape_n = static_cast<uint32_t>(n),
+                 .min_sf_exp = min_sf_exp}};
     }
     if (alpha.has_value()) {
         DG_HOST_ASSERT(not epilogue_type.has_value());

@@ -113,7 +113,7 @@ CUTLASS_DEVICE uint32_t scale_bf16x2_into_fp8x4(const nv_bfloat162& lower, const
 // the carry of the integer addition performs the exponent ceiling (carry iff the amax
 // mantissa exceeds the max finite value's mantissa)
 template <typename quant_dtype_t = cutlass::float_e4m3_t, typename dtype_t>
-CUTLASS_DEVICE uint32_t get_ue8m0_sf_exp(const dtype_t& amax) {
+CUTLASS_DEVICE uint32_t get_ue8m0_sf_exp(const dtype_t& amax, const uint32_t fp8_min_sf_exp = 105) {
     constexpr bool kIsFP32 = cute::is_same_v<dtype_t, float>;
     DG_STATIC_ASSERT((kIsFP32 or cute::is_same_v<dtype_t, nv_bfloat16>), "The input type must be FP32 or BF16");
     DG_STATIC_ASSERT((cute::is_same_v<quant_dtype_t, cutlass::float_e4m3_t> or cute::is_same_v<quant_dtype_t, cutlass::float_e2m1_t>),
@@ -125,7 +125,7 @@ CUTLASS_DEVICE uint32_t get_ue8m0_sf_exp(const dtype_t& amax) {
     constexpr uint32_t kQuantMaxExponent = kIsFP8 ? 8 : 2;                                    // 448 = 1.75 * 2 ^ 8, 6 = 1.5 * 2 ^ 2
     // The exponent floors match the per-token cast kernel's amax clamps:
     // `max(amax, 1e-4)` for E4M3 (2 ^ -22), `max(amax, 6 * 2 ^ -126)` for E2M1 (2 ^ -126)
-    constexpr uint32_t kMinSFExponent = kIsFP8 ? 105 : 1;
+    const uint32_t kMinSFExponent = kIsFP8 ? fp8_min_sf_exp : 1;
     uint32_t amax_bits;
     if constexpr (kIsFP32)
         amax_bits = __float_as_uint(amax);
